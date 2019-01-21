@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.melot.talkee.wordpress.dao.WordpressDao">
+
+    <select id="getTerms" resultType="com.melot.talkee.wordpress.dto.TermDTO">
+        select a.* from wp_terms a
+        left join wp_term_taxonomy b on a.term_id=b.term_id
+        where b.taxonomy=#{type} and b.term_id!=#{monthTermId} and b.parent=#{parent}
+        order by term_id asc
+    </select>
+
+    <select id="getPostIdList" resultType="java.lang.Integer">
+        select a.object_id from wp_term_relationships a
+        left join wp_posts b on a.object_id=b.ID
+        <where>
+            b.post_status='publish'
+            <if test="termIds != null and termIds.size() > 0">
+                and a.term_taxonomy_id in
+                <foreach collection="termIds" item="item" separator="," open="(" close=")">
+                    #{item}
+                </foreach>
+            </if>
+        </where>
+        group by a.object_id
+        order by b.post_date desc,b.ID desc
+    </select>
+
+    <select id="getPostIdAllList" resultType="java.lang.Integer">
+        select ID from wp_posts
+        <where>
+            post_status='publish'
+            <if test="monthPostIdList != null and monthPostIdList.size() > 0">
+                and ID not in
+                <foreach collection="monthPostIdList" item="item" separator="," open="(" close=")">
+                    #{item}
+                </foreach>
+            </if>
+        </where>
+        order by post_date desc,ID desc
+    </select>
+
+
+    <select id="getArticleCount" resultType="java.lang.Integer">
+        select count(*) from wp_posts
+        <where>
+            post_status='publish'
+            <if test="postIds != null and postIds.size() > 0">
+                and ID in
+                <foreach collection="postIds" item="item" separator="," open="(" close=")">
+                    #{item}
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+    <select id="getArticleAllCount" resultType="java.lang.Integer">
+        select count(*) from wp_posts
+        <where>
+            post_status='publish'
+            <if test="monthPostIdList != null and monthPostIdList.size() > 0">
+                and ID not in
+                <foreach collection="monthPostIdList" item="item" separator="," open="(" close=")">
+                    #{item}
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+    <select id="getArticlesSimpleInfo" resultType="com.melot.talkee.wordpress.dto.ArticleSimpleDTO">
+        select ID,post_title,post_date from wp_posts
+        <where>
+            post_status='publish'
+            <if test="postIds != null and postIds.size() > 0">
+                and ID in
+                <foreach collection="postIds" item="item" separator="," open="(" close=")">
+                    #{item}
+                </foreach>
+            </if>
+        </where>
+        order by post_date desc,ID desc
+        <if test="limit != null">
+            limit #{limit}
+        </if>
+        <if test="offset != null">
+            offset #{offset}
+        </if>
+    </select>
+
+    <select id="getArticles" resultType="com.melot.talkee.wordpress.domain.ArticleDO">
+        select ID,post_title,post_content,post_date from wp_posts
+        <where>
+            post_status='publish'
+            <if test="postIds != null and postIds.size() > 0">
+                and ID in
+                <foreach collection="postIds" item="item" separator="," open="(" close=")">
+                    #{item}
+                </foreach>
+            </if>
+        </where>
+        order by post_date desc,ID desc
+        <if test="limit != null">
+            limit #{limit}
+        </if>
+        <if test="offset != null">
+            offset #{offset}
+        </if>
+    </select>
+
+    <select id="getArticlesAll" resultType="com.melot.talkee.wordpress.domain.ArticleDO">
+        select ID,post_title,post_content,post_date from wp_posts
+        <where>
+            post_status='publish'
+            <if test="monthPostIdList != null and monthPostIdList.size() > 0">
+                and ID not in
+                <foreach collection="monthPostIdList" item="item" separator="," open="(" close=")">
+                    #{item}
+                </foreach>
+            </if>
+        </where>
+        order by post_date desc,ID desc
+        <if test="limit != null">
+            limit #{limit}
+        </if>
+        <if test="offset != null">
+            offset #{offset}
+        </if>
+    </select>
+
+    <select id="getFirstPicture" parameterType="java.lang.Integer" resultType="java.lang.String">
+        select guid from wp_posts where post_status='inherit' and post_parent=#{parent} and (guid like '%png' or guid like '%jpg')
+        order by ID limit 1;
+    </select>
+
+    <select id="articleDetail" parameterType="java.lang.Integer"
+            resultType="com.melot.talkee.wordpress.domain.ArticleDO">
+        select a.*,b.user_nicename post_author_name from wp_posts a
+        left join wp_users b on a.post_author=b.ID
+        where a.Id=#{postId}
+    </select>
+
+    <select id="articleSimple" parameterType="java.lang.Integer"
+            resultType="com.melot.talkee.wordpress.domain.ArticleDO">
+        select ID,post_title,post_date from wp_posts where ID=#{postId}
+    </select>
+
+    <select id="getMonthPostIdlist" resultType="java.lang.Integer">
+        select object_id from wp_term_relationships where term_taxonomy_id=#{monthTermId} group by object_id
+    </select>
+
+    <select id="getTerm" resultType="com.melot.talkee.wordpress.domain.TermDO">
+        select a.* from wp_terms a
+        join wp_term_relationships b on a.term_id=b.term_taxonomy_id
+        join wp_term_taxonomy c on a.term_id=c.term_id
+        where c.taxonomy='category' and b.object_id=#{postId}
+        limit 1
+    </select>
+
+    <select id="getParent" resultType="com.melot.talkee.wordpress.domain.TermDO">
+        select a.* from wp_terms a
+        join wp_term_taxonomy b on a.term_id=b.parent
+        where b.taxonomy='category' and b.term_id=#{termId}
+    </select>
+
+    <select id="getSeoInfo" resultType="java.util.Map">
+        select meta_key,meta_value from wp_postmeta where meta_key like '_yoast_wpseo%' and post_id=#{postId}
+    </select>
+
+    <select id="getTermById" resultType="com.melot.talkee.wordpress.domain.TermDO">
+        select * from wp_terms where term_id=#{termId}
+    </select>
+
+    <select id="getTermBySlug" resultType="com.melot.talkee.wordpress.domain.TermDO">
+        select a.* from wp_terms a
+        left join wp_term_taxonomy b on a.term_id=b.term_id
+        where taxonomy='category'
+        and a.slug=#{slug};
+    </select>
+</mapper>
